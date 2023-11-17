@@ -1,0 +1,270 @@
+﻿@page "/ProductoForm/{idProducto}"
+
+@*Necesario para poder redirigir a otro componente*@
+@inject NavigationManager NavigationManager
+
+<h3>Formulario</h3>
+
+
+@if (int.Parse(idProducto) <= 0 || int.Parse(idProducto) == null)
+{
+    <div class="row">
+        <div class="col-6">
+            <label>Nombre:</label>
+            <input class="form-control" placeholder="Ingresa el nombre del producto" @bind-value="@productoPrueba.Nombre" />
+        </div>
+
+        <div class="col-6">
+            <label>Precio:</label>
+            <input class="form-control" placeholder="Ingresa el precio del producto" @bind-value="@productoPrueba.Precio" />
+        </div>
+    </div>
+
+    <br />
+
+    <div>
+        <div class="col-6">
+            <label>Categoria:</label>
+            <select class="form-select" @bind="productoPrueba.Categoria.Id">
+                <option value="0">Selecciona una opción...</option>
+                @foreach (ML.Categoria categoria in categoria.Categorias)
+                {
+                    <option value="@categoria.Id">@categoria.Nombre</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <br />
+    <br />
+    <center>
+        <button class="btn btn-success" @onclick="() => Form()">Registrar</button>
+    </center>
+}
+else
+{
+
+
+
+    <input type="hidden" @bind-value="productoPrueba.Id" />
+
+
+    <div class="row">
+        <div class="col-6">
+            <label>Nombre:</label>
+            <input class="form-control" placeholder="Ingresa el nombre del producto" @bind-value="@productoPrueba.Nombre" />
+        </div>
+
+        <div class="col-6">
+            <label>Precio:</label>
+            <input class="form-control" placeholder="Ingresa el precio" @bind-value="@productoPrueba.Precio" />
+        </div>
+    </div>
+
+    <br />
+
+    <div>
+        <div class="col-6">
+            <label>Categoria:</label>
+            <select class="form-select" @bind="@productoPrueba.Categoria.Id">
+                <option value="0">Selecciona una opción...</option>
+                @foreach (ML.Categoria categoria in categoria.Categorias)
+                {
+                    <option value="@categoria.Id">@categoria.Nombre</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <br />
+    <br />
+    <center>
+        <button class="btn btn-primary" @onclick="() => Form()">Actualizar</button>
+    </center>
+}
+
+
+@if (DialogOpen)
+{
+    <Modal Title="@Title"
+           Text="@Text"
+           FromComponent="@FromComponent"
+           OnClose="@OnDialogClose"
+           FuncionBoton="@AllowGetAll">
+    </Modal>
+}
+
+
+@code {
+    [Parameter]
+    public string? idProducto { get; set; }
+
+    public bool Actualizado { get; set; }
+
+    public ML.Producto productoPrueba = new ML.Producto();
+
+    public ML.Categoria categoria = new ML.Categoria();
+
+
+    protected override void OnInitialized()
+    {
+        productoPrueba.Categoria = new ML.Categoria();
+
+        categoria.Categorias = new List<ML.Categoria>();
+        categoria.Categorias = BL.Categoria.GetAll();
+
+        if (int.Parse(idProducto) > 0 && Actualizado == false)
+        {
+            productoPrueba = BL.Productos.GetById(int.Parse(idProducto));
+
+            Actualizado = true;
+        }
+
+    }
+
+    public ML.Informacion informacionForm = new ML.Informacion();
+
+    private void GetById(int idProducto)
+    {
+        productoPrueba.Productos = new List<ML.Producto>();
+        productoPrueba.Informacion = new ML.Informacion();
+
+        try
+        {
+            using (var client = new HttpClient())
+            {
+                client.BaseAddress = new Uri("http://localhost:5289/api/Producto/");
+
+                var responseTask = client.GetAsync("GetById/" + idProducto);
+                responseTask.Wait();
+
+                var resultTask = responseTask.Result;
+
+                var readTask = resultTask.Content.ReadAsAsync<ML.Producto>();
+                readTask.Wait();
+
+                if (resultTask.IsSuccessStatusCode)
+                {
+
+                    if (readTask.Result.Informacion.Estatus.Value)
+                    {
+
+                        productoPrueba = readTask.Result;
+                    }
+                    else
+                    {
+                        productoPrueba = readTask.Result;
+                    }
+                }
+                else
+                {
+                    productoPrueba.Informacion.Estatus = readTask.Result.Informacion.Estatus;
+                    productoPrueba.Informacion.Mensaje = readTask.Result.Informacion.Mensaje;
+                }
+            }
+
+        }
+        catch (Exception ex)
+        {
+            productoPrueba.Informacion.Estatus = false;
+            productoPrueba.Informacion.Mensaje = "A ocurrido un error: " + ex.Message;
+        }
+    }
+
+
+    private void Form()
+    {
+
+        if (int.Parse(idProducto) <= 0 || int.Parse(idProducto) == null)  // ADD
+        {
+            using (var client = new HttpClient())
+            {
+                client.BaseAddress = new Uri("http://localhost:5289/api/Producto/");
+                var responseTask = client.PostAsJsonAsync("Add", productoPrueba);
+                responseTask.Wait();
+
+                var resultTask = responseTask.Result;
+
+                var readTask = resultTask.Content.ReadAsAsync<ML.Informacion>();
+                readTask.Wait();
+
+                if (resultTask.IsSuccessStatusCode)
+                {
+                    informacionForm.Estatus = readTask.Result.Estatus;
+                    informacionForm.Mensaje = readTask.Result.Mensaje;
+                }
+                else
+                {
+                    informacionForm.Estatus = readTask.Result.Estatus;
+                    informacionForm.Mensaje = readTask.Result.Mensaje;
+                }
+
+            }
+        }
+        else  // UPDATE
+        {
+            using (var client = new HttpClient())
+            {
+                client.BaseAddress = new Uri("http://localhost:5289/api/Producto/Update/");
+                var responseTask = client.PutAsJsonAsync(productoPrueba.Id.ToString(), productoPrueba);
+                responseTask.Wait();
+
+                var resultTask = responseTask.Result;
+
+                var readTask = resultTask.Content.ReadAsAsync<ML.Informacion>();
+                readTask.Wait();
+
+                if (resultTask.IsSuccessStatusCode)
+                {
+                    informacionForm.Estatus = readTask.Result.Estatus;
+                    informacionForm.Mensaje = readTask.Result.Mensaje;
+                }
+                else
+                {
+                    informacionForm.Estatus = readTask.Result.Estatus;
+                    informacionForm.Mensaje = readTask.Result.Mensaje;
+                }
+
+            }
+        }
+
+        Title = "Estatus operación";
+        Text = informacionForm.Mensaje;
+        FromComponent = "Aceptar";
+        DialogOpen = true;
+        StateHasChanged();
+    }
+
+    // ATRIBUTOS Y METODOS PARA EL MODAL
+    public bool DialogOpen { get; set; }
+
+    public string Title { get; set; }
+
+    public string Text { get; set; }
+
+    public string FromComponent { get; set; }
+
+    public async Task OnDialogClose(bool accepted)
+    {
+        DialogOpen = false;
+        StateHasChanged();
+    }
+
+    public void OpenDeleteDialog(int idProducto, string title, string text, string component)
+    {
+        productoPrueba.Id = idProducto;
+        Title = title;
+        Text = text;
+        FromComponent = component;
+        DialogOpen = true;
+        StateHasChanged();
+    }
+
+
+    public async Task AllowGetAll()
+    {
+        NavigationManager.NavigateTo("/productoGetAll");
+        string Mensaje = informacionForm.Mensaje;
+        StateHasChanged();
+    }
+}
